@@ -1,0 +1,67 @@
+name: Android CI - Flutter
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build-android:
+    name: Build Android APKs and AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run Flutter analyze (optional)
+        run: flutter analyze || true
+
+      - name: Build release APKs (split per ABI)
+        run: flutter build apk --release --split-per-abi
+
+      - name: Build App Bundle (AAB)
+        run: flutter build appbundle --release
+
+      - name: List build outputs
+        run: |
+          echo "APK outputs:"
+          ls -la build/app/outputs/flutter-apk || true
+          echo "AAB outputs:"
+          ls -la build/app/outputs/bundle/release || true
+
+      - name: Upload APKs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: build/app/outputs/flutter-apk/*.apk
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab
+          path: build/app/outputs/bundle/release/*.aab
+
+      - name: Upload entire build folder (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-folder
+          path: build/**
